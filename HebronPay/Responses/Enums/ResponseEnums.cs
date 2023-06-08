@@ -15,4 +15,23 @@ namespace HebronPay.Responses.Enums
         [Description("success")] success,
 
     }
+
+    public enum HebronPayTransactionTypeEnum
+    {
+        [Description("pending")] pending = 1,
+ 
+
+    }
+
+    public enum CurrencyEnum
+    {
+        [Description("NGN")] NGN = 1,
+
+
+    }
+    public enum FlutterWaveResponseEnum
+    {
+        [Description("success")] success = 1,
+
+    }
 }

@@ -48,7 +48,7 @@ namespace HebronPay.Authentication
     public class LoginModel
     {
         //[Required(ErrorMessage = "Username OR Email is required")]
-        public string UsernameOrEmail { get; set; }
+        public string Email { get; set; }
 
 
         //[Required(ErrorMessage = "Paasword is required")]
@@ -69,5 +69,16 @@ namespace HebronPay.Authentication
         public DateTime Expiration { get; set; }
     }
 
-    
+    public class SetPinModel
+    {
+        public int walletPin { get; set; }
+        public int confirmWalletPin { get; set; }
+    }
+
+    public class ChangePinModel
+    {
+        public int currentPin { get; set; }
+        public int newWalletPin { get; set; }
+        public int confirmNewWalletPin { get; set; }
+    }
 }

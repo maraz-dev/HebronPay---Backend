@@ -4,14 +4,16 @@ using HebronPay.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace HebronPay.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230530002601_newflutterwavesubaccountid")]
+    partial class newflutterwavesubaccountid
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -83,9 +85,6 @@ namespace HebronPay.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<int>("hebronPayWalletId")
-                        .HasColumnType("int");
-
                     b.Property<bool>("isKycVerified")
                         .HasColumnType("bit");
 
@@ -105,46 +104,9 @@ namespace HebronPay.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.HasIndex("hebronPayWalletId");
-
                     b.HasIndex("subAccountId");
 
                     b.ToTable("AspNetUsers");
-                });
-
-            modelBuilder.Entity("HebronPay.Model.HebronPayTransaction", b =>
-                {
-                    b.Property<int>("id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<double>("amount")
-                        .HasColumnType("float");
-
-                    b.Property<string>("date")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("hebronPayWalletId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("reference")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("time")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("type")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("id");
-
-                    b.HasIndex("hebronPayWalletId");
-
-                    b.ToTable("HebronPayTransactions");
                 });
 
             modelBuilder.Entity("HebronPay.Model.HebronPayWallet", b =>
@@ -156,9 +118,6 @@ namespace HebronPay.Migrations
 
                     b.Property<double>("walletBalance")
                         .HasColumnType("float");
-
-                    b.Property<int>("walletPin")
-                        .HasColumnType("int");
 
                     b.HasKey("id");
 
@@ -364,32 +323,13 @@ namespace HebronPay.Migrations
 
             modelBuilder.Entity("HebronPay.Authentication.ApplicationUser", b =>
                 {
-                    b.HasOne("HebronPay.Model.HebronPayWallet", "hebronPayWallet")
-                        .WithMany()
-                        .HasForeignKey("hebronPayWalletId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("HebronPay.Model.SubAccount", "subAccount")
                         .WithMany()
                         .HasForeignKey("subAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("hebronPayWallet");
-
                     b.Navigation("subAccount");
-                });
-
-            modelBuilder.Entity("HebronPay.Model.HebronPayTransaction", b =>
-                {
-                    b.HasOne("HebronPay.Model.HebronPayWallet", "hebronPayWallet")
-                        .WithMany("hebronPayTransactions")
-                        .HasForeignKey("hebronPayWalletId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("hebronPayWallet");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -441,11 +381,6 @@ namespace HebronPay.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("HebronPay.Model.HebronPayWallet", b =>
-                {
-                    b.Navigation("hebronPayTransactions");
                 });
 #pragma warning restore 612, 618
         }

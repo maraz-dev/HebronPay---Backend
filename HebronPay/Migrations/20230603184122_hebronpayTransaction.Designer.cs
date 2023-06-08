@@ -4,14 +4,16 @@ using HebronPay.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace HebronPay.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230603184122_hebronpayTransaction")]
+    partial class hebronpayTransaction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -135,9 +137,6 @@ namespace HebronPay.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("time")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("type")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("id");
@@ -384,7 +383,7 @@ namespace HebronPay.Migrations
             modelBuilder.Entity("HebronPay.Model.HebronPayTransaction", b =>
                 {
                     b.HasOne("HebronPay.Model.HebronPayWallet", "hebronPayWallet")
-                        .WithMany("hebronPayTransactions")
+                        .WithMany()
                         .HasForeignKey("hebronPayWalletId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -441,11 +440,6 @@ namespace HebronPay.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("HebronPay.Model.HebronPayWallet", b =>
-                {
-                    b.Navigation("hebronPayTransactions");
                 });
 #pragma warning restore 612, 618
         }

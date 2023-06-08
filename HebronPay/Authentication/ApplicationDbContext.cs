@@ -12,6 +12,9 @@ namespace HebronPay.Authentication
 
         }
         public DbSet<OTP> OTPs { get; set; }
+        public DbSet<HebronPayWallet> HebronPayWallets { get; set; }
+        public DbSet<HebronPayTransaction> HebronPayTransactions { get; set; }
+        public DbSet<SubAccount> SubAccounts { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

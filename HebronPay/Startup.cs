@@ -1,4 +1,6 @@
 using HebronPay.Authentication;
+using HebronPay.FlutterwaveServices.Implementation;
+using HebronPay.FlutterwaveServices.Interface;
 using HebronPay.Services.Implementation;
 using HebronPay.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -38,7 +40,11 @@ namespace HebronPay
             services.AddControllers();
 
             services.AddTransient<IAuthenticationServices, AuthenticationServices>();
+            services.AddTransient<IFlutterwaveServices, FlutterwaveService>();
+            services.AddTransient<ITransactionServices, TransactionServices>();
 
+
+            
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("ConnStr")));
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -120,6 +126,7 @@ namespace HebronPay
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
