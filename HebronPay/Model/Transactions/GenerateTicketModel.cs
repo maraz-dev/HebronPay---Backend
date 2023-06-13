@@ -10,6 +10,25 @@ namespace HebronPay.Model.Transactions
 
     }
 
+
+    public class WithdrawModel
+    {
+        public string account_number { get; set; }
+        public string account_name { get; set; }
+        public string account_bank { get; set; }
+        public string narration { get; set; }
+        public double amount { get; set; }
+
+
+    }
+
+    public class FundWalletModel
+    {
+        public double amount { get; set; }
+
+
+    }
+
     public class GetTransactionResponse : HebronPayTransaction
     {
         public int flutterwaveSubAccountId { get; set; }

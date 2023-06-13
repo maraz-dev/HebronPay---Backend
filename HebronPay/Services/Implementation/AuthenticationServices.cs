@@ -42,6 +42,78 @@ namespace HebronPay.Services.Implementation
             _flutterwaveServices = flutterwaveServices;
         }
 
+
+        public async Task<ApiResponse> CheckValidations(ValidateModel model)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            //create the "user" role
+            await CreateRoles();
+
+            if (String.IsNullOrEmpty(model.UserName))
+            {
+                return returnedResponse.ErrorResponse("Username cannot be empty", null);
+
+            }
+
+            if (String.IsNullOrEmpty(model.Email))
+            {
+                return returnedResponse.ErrorResponse("Email cannot be empty", null);
+
+            }
+
+            //ensure that the email is valid using regular expressions.
+            var validateEmail = ValidateEmailRegExp(model.Email);
+            if (!validateEmail)
+            {
+                return returnedResponse.ErrorResponse("Email is Invalid", null);
+            }
+
+
+            //ensure no other user has the same username
+            var userExists = await userManager.FindByNameAsync(model.UserName);
+            if (userExists != null)
+            {
+                return returnedResponse.ErrorResponse("User with that Username Already Exists", null);
+            }
+
+            //ensure no other user has the same email
+            var emailExists = await userManager.FindByEmailAsync(model.Email);
+            if (emailExists != null)
+            {
+                return returnedResponse.ErrorResponse("User with that Email Already Exists", null);
+            }
+
+            //ensure password meets the validations
+            var validatePassword = ValidatePassword(model.Password);
+            if (validatePassword.error != null)
+            {
+                return returnedResponse.ErrorResponse(validatePassword.error.message, null);
+            }
+
+            //ensure password and confirm password are the same
+            if (model.Password != model.ConfirmPassword)
+            {
+                return returnedResponse.ErrorResponse("Password and Confirm Password do not match", null);
+            }
+
+
+            return returnedResponse.CorrectResponse("Valid Details");
+
+        }
+
+
+        public bool ValidateEmailRegExp(string email)
+        {
+            var validEmail = new Regex("^\\S+@\\S+\\.\\S+$");
+            if (validEmail.IsMatch(email))
+            {
+                return true;
+            }
+            return false;
+
+        }
+
         public async Task<ApiResponse> CreateOTP(string email)
         {
             ReturnedResponse returnedResponse = new ReturnedResponse();
@@ -54,6 +126,7 @@ namespace HebronPay.Services.Implementation
                 {
                     pin = pin,
                     email = email,
+                    dateExpired = DateTime.Now.AddMinutes(1),
 
                 };
                 await _context.OTPs.AddAsync(newOTP);
@@ -166,6 +239,20 @@ namespace HebronPay.Services.Implementation
 
             await CreateRoles();
 
+
+            var mapper = new Mapper(MapperConfig.GetMapperConfiguration());
+            var validateModel = mapper.Map<ValidateModel>(model);
+
+
+            //just for safety, validate everything again just to be sure
+            var validations = await CheckValidations(validateModel);
+
+            if (validations.Message != ApiResponseEnum.success.ToString())
+            {
+                return returnedResponse.ErrorResponse(validations.error.message, null);
+            }
+
+
             if (String.IsNullOrEmpty(model.UserName))
             {
                 return returnedResponse.ErrorResponse("Username cannot be empty", null);
@@ -218,8 +305,7 @@ namespace HebronPay.Services.Implementation
 
             CreateSubAccountResponseModel newSubAccount = JsonConvert.DeserializeObject<CreateSubAccountResponseModel>(flutterwaveResponse.data.ToString());
 
-            var mapper = new Mapper(MapperConfig.GetMapperConfiguration());
-
+            
             //create the application user instance
 
             ApplicationUser user = new ApplicationUser()
@@ -238,7 +324,7 @@ namespace HebronPay.Services.Implementation
                 
                 subAccount = new SubAccount
                 {
-                    account_name = newSubAccount.account_name,
+                    account_name = $"{newSubAccount.account_name} HEBRONPAY",
                     account_reference = newSubAccount.account_reference,
                     bank_code = newSubAccount.bank_code,
                     country = newSubAccount.country,
@@ -254,6 +340,7 @@ namespace HebronPay.Services.Implementation
                 },
                 
                 isOtpVerified = false,
+                isPinSet = false,
                 
                 hebronPayWallet = new HebronPayWallet
                 {
@@ -285,8 +372,16 @@ namespace HebronPay.Services.Implementation
         {
             ReturnedResponse returnedResponse = new ReturnedResponse();
             var userOTP = await _context.OTPs.Where(o => o.email == email).OrderBy(o => o.Id).LastAsync();
+
+            
+
             if (userOTP.pin == Convert.ToInt32(inputPin))
             {
+                if (DateTime.Now > userOTP.dateExpired)
+                {
+                    return returnedResponse.ErrorResponse("This otp has expired", null);
+                }
+
                 var user = await userManager.FindByEmailAsync(email);
                 user.isOtpVerified = true;
 
@@ -418,12 +513,20 @@ namespace HebronPay.Services.Implementation
                 return returnedResponse.ErrorResponse("Pin and Confirm pin do not match", null);
             }
 
+            //ensure pin meets the validations
+            var validatePin = ValidatePin(model.walletPin.ToString());
+            if (validatePin.error != null)
+            {
+                return returnedResponse.ErrorResponse(validatePin.error.message, null);
+            }
+
             var user = _context.Users.Where(u=>u.UserName == username)
                 .Include(u=>u.hebronPayWallet)
                 .Include(u=>u.subAccount)
                 .FirstOrDefault();
 
             user.hebronPayWallet.walletPin = model.walletPin;
+            user.isPinSet = true;
             await _context.SaveChangesAsync();
             return returnedResponse.CorrectResponse("successfully set pin");
         }
@@ -452,8 +555,21 @@ namespace HebronPay.Services.Implementation
                 return returnedResponse.ErrorResponse("Pin and Confirm pin do not match", null);
             }
 
-            
+            if (model.newWalletPin == user.hebronPayWallet.walletPin)
+            {
+                return returnedResponse.ErrorResponse("New pin cannot be same as old pin", null);
+            }
+
+
+            //ensure pin meets the validations
+            var validatePin = ValidatePin(model.newWalletPin.ToString());
+            if (validatePin.error != null)
+            {
+                return returnedResponse.ErrorResponse(validatePin.error.message, null);
+            }
+
             user.hebronPayWallet.walletPin = model.newWalletPin;
+            user.isPinSet = true;
             await _context.SaveChangesAsync();
             return returnedResponse.CorrectResponse("successfully set pin");
 
@@ -461,12 +577,12 @@ namespace HebronPay.Services.Implementation
         }
 
 
-        public async Task<ApiResponse> ForgotPassword(string email, string newPassword, string confirmPassword)
+        public async Task<ApiResponse> ForgotPassword(ForgotPasswordModel model)
         {
             ReturnedResponse returnedResponse = new ReturnedResponse();
 
             // check if there is any user with that email or username
-            var user = await userManager.FindByNameAsync(email) ?? await userManager.FindByEmailAsync(email);
+            var user = await userManager.FindByNameAsync(model.email) ?? await userManager.FindByEmailAsync(model.email);
 
             //if user does not exist, return an error response
             if (user == null)
@@ -476,7 +592,7 @@ namespace HebronPay.Services.Implementation
 
 
             //ensure that the new password to be set is valid using regexp
-            var validPassword = ValidatePassword(newPassword);
+            var validPassword = ValidatePassword(model.newPassword);
             if (validPassword.Message == ApiResponseEnum.failure.ToString())
             {
                 return returnedResponse.ErrorResponse(validPassword.error.message, null);
@@ -484,14 +600,14 @@ namespace HebronPay.Services.Implementation
 
 
             //ensure that the password and confirm passwords match
-            if (newPassword != confirmPassword)
+            if (model.newPassword != model.confirmPassword)
             {
                 return returnedResponse.ErrorResponse("Password and Confirm Password do not match", null);
             }
 
 
             var token = await userManager.GeneratePasswordResetTokenAsync(user);
-            var result = await userManager.ResetPasswordAsync(user, token, newPassword);
+            var result = await userManager.ResetPasswordAsync(user, token, model.newPassword);
 
             if (result.Succeeded)
             {
@@ -502,9 +618,10 @@ namespace HebronPay.Services.Implementation
 
         }
 
-        public async Task<ApiResponse> ChangePassword(string username, string currentPassword, string newPassword, string confirmPassword)
+        public async Task<ApiResponse> ChangePassword(string username, ChangePasswordModel model)
         {
             ReturnedResponse returnedResponse = new ReturnedResponse();
+
 
             // check if there is any user with that email or username
             var user = await userManager.FindByNameAsync(username) ?? await userManager.FindByEmailAsync(username);
@@ -517,12 +634,13 @@ namespace HebronPay.Services.Implementation
 
 
             //check if the password used is correct
-            bool correctPassword = await userManager.CheckPasswordAsync(user, currentPassword);
+            bool correctPassword = await userManager.CheckPasswordAsync(user, model.currentPassword);
 
             //if password is incorrect, return an error response
             if (!correctPassword) return returnedResponse.ErrorResponse("Incorrect Password", null);
 
-            var changePassword = await ForgotPassword(username, newPassword, confirmPassword);
+            //var changePassword = await ForgotPassword(model.username, model.newPassword, model.confirmPassword);
+            var changePassword = await ForgotPassword(new ForgotPasswordModel { confirmPassword = model.confirmPassword, email = username, newPassword = model.newPassword});
 
             if (changePassword.Message == ApiResponseEnum.failure.ToString())
             {
@@ -578,6 +696,37 @@ namespace HebronPay.Services.Implementation
             {
                 return returnedResponse.CorrectResponse(true);
             }
+        }
+
+        public ApiResponse ValidatePin(string pin)
+        {
+            //for pin to be valid it should be length4, NOT forward consecutive and NOT backward consecutive and NOT repeating
+
+            string errorMessage = "";
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            bool isValidPinLength = false;
+            bool isForwardConsecutive = false;
+            bool isBackwardConsecutive = false;
+            bool isNonRepeating = false;
+
+            isValidPinLength = pin.Length == 4;
+            if (!isValidPinLength) return returnedResponse.ErrorResponse("Pin must be 4 digits", null);
+
+            isForwardConsecutive = checkPinForwardConsecutive(pin);
+            if (isForwardConsecutive) return returnedResponse.ErrorResponse("Pin cannot be 4 consecutive numbers", null);
+
+            isBackwardConsecutive = checkPinBackwardConsecutive(pin);
+            if (isBackwardConsecutive) return returnedResponse.ErrorResponse("Pin cannot be 4 consecutive numbers", null);
+
+            isNonRepeating = checkPinNonRepeatingNumber(pin);
+            if (!isNonRepeating) return returnedResponse.ErrorResponse("Pin cannot be one digit repeated", null);
+
+            return returnedResponse.CorrectResponse(true);
+
+
+
+
         }
 
         public Task<ApiResponse> UpdateUserWallet(string username)
@@ -644,5 +793,53 @@ namespace HebronPay.Services.Implementation
         }
 
         */
+
+
+        public bool checkPinForwardConsecutive(string pin)
+        {
+            for (int i = 0; i < pin.Length - 1; i++)
+            {
+                int currentDigit = int.Parse(pin[i].ToString());
+                int nextDigit = int.Parse(pin[i + 1].ToString());
+
+                if (nextDigit - currentDigit != 1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool checkPinBackwardConsecutive(string pin)
+        {
+            for (int i = 0; i < pin.Length - 1; i++)
+            {
+                int currentDigit = int.Parse(pin[i].ToString());
+                int nextDigit = int.Parse(pin[i + 1].ToString());
+
+                if (currentDigit - nextDigit != 1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool checkPinNonRepeatingNumber(string pin)
+        {
+            char firstDigit = pin[0];
+            for (int i = 1; i < pin.Length; i++)
+            {
+                if (pin[i] != firstDigit)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
     }
 }

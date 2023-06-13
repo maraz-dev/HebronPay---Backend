@@ -51,6 +51,70 @@ namespace HebronPay.FlutterwaveServices.Implementation
 
         }
 
+        public async Task<FlutterWaveResponse> getBankAccountDetails(ResolveAccountDetailsRequest model)
+        {
+            HttpClient client = setclient();
+
+            string path = "accounts/resolve";
+            try
+            {
+                HttpResponseMessage Res = await client.PostAsJsonAsync(path, model);
+                if (Res.IsSuccessStatusCode)
+                {
+
+                    var flutterwaveResponse = await Res.Content.ReadFromJsonAsync<FlutterWaveResponse>();
+
+
+                    return flutterwaveResponse;
+                }
+
+                else
+                {
+                    var flutterwaveResponse = await Res.Content.ReadFromJsonAsync<FlutterWaveResponse>();
+                    return flutterwaveResponse;
+                }
+
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+
+        }
+
+        public async Task<FlutterWaveResponse> getBanks()
+        {
+            //throw new NotImplementedException();
+            HttpClient client = setclient();
+            string country = "NG";
+
+            string path = $"banks/{country}";
+
+            try
+            {
+                HttpResponseMessage Res = await client.GetAsync(path);
+                if (Res.IsSuccessStatusCode)
+                {
+
+                    var flutterwaveResponse = await Res.Content.ReadFromJsonAsync<FlutterWaveResponse>();
+
+
+                    return flutterwaveResponse;
+                }
+
+                else
+                {
+                    var flutterwaveResponse = await Res.Content.ReadFromJsonAsync<FlutterWaveResponse>();
+                    return flutterwaveResponse;
+                }
+
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+        }
+
         public async Task<FlutterWaveResponse> getWalletBalance(string account_reference)
         {
             //throw new NotImplementedException();

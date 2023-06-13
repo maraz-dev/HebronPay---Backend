@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using HebronPay.Model.Transactions;
 using Microsoft.AspNetCore.Authorization;
 using HebronPay.Model.FlutterWave.Transfer;
+using HebronPay.Model;
 
 namespace HebronPay.Controllers
 {
@@ -124,6 +125,130 @@ namespace HebronPay.Controllers
         {
 
             var response = await _transactionServices.getSubAccountDetails(User.Identity.Name);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+
+
+        [Authorize]
+        [HttpPost("FundWallet")]
+        public async Task<ActionResult<ApiResponse>> FundWallet(FundWalletModel model)
+        {
+
+            var response = await _transactionServices.fundWallet(User.Identity.Name, model);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+        [Authorize]
+        [HttpPost("ConfirmTicketPayment")]
+        public async Task<ActionResult<ApiResponse>> ConfirmTicketPayment(HebronPayTransaction model)
+        {
+
+            var response = await _transactionServices.confirmTicketPayment(User.Identity.Name, model);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+        [Authorize]
+        [HttpGet("GetAllTransactions")]
+        public async Task<ActionResult<ApiResponse>> GetAllTransactions()
+        {
+
+            var response = await _transactionServices.getAllTransactions();
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+        [Authorize]
+        [HttpGet("GetUsersTransactions")]
+        public async Task<ActionResult<ApiResponse>> GetUsersTransactions()
+        {
+
+            var response = await _transactionServices.getUsersTransactions(User.Identity.Name);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+
+        [Authorize]
+        [HttpPost("ResolveBankAccountDetails")]
+        public async Task<ActionResult<ApiResponse>> ResolveBankAccountDetails(ResolveAccountDetailsRequest model)
+        {
+
+            var response = await _transactionServices.resolveBankAccount(model);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+
+        [Authorize]
+        [HttpGet("GetBanks")]
+        public async Task<ActionResult<ApiResponse>> GetBanks()
+        {
+
+            var response = await _transactionServices.getAllBanks();
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+
+        [Authorize]
+        [HttpPost("WithdrawFromWallet")]
+        public async Task<ActionResult<ApiResponse>> WithdrawFromWallet(WithdrawModel model)
+        {
+
+            var response = await _transactionServices.withdraw(User.Identity.Name,model);
             if (response.Message == ApiResponseEnum.success.ToString())
             {
                 return Ok(response);

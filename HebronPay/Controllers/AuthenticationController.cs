@@ -139,10 +139,10 @@ namespace HebronPay.Controllers
         */
 
         [HttpPost("ForgotPassword")]
-        public async Task<ActionResult<ApiResponse>> ForgotPassword(string email, string newPassword, string confirmPassword)
+        public async Task<ActionResult<ApiResponse>> ForgotPassword(ForgotPasswordModel model)
         {
 
-            var response = await _authenticationServices.ForgotPassword(email, newPassword, confirmPassword);
+            var response = await _authenticationServices.ForgotPassword(model);
             if (response.Message == ApiResponseEnum.success.ToString())
             {
                 return Ok(response);
@@ -156,10 +156,10 @@ namespace HebronPay.Controllers
 
         [Authorize]
         [HttpPost("ChangePassword")]
-        public async Task<ActionResult<ApiResponse>> ChangePassword(string currentPassword, string newPassword, string confirmPassword)
+        public async Task<ActionResult<ApiResponse>> ChangePassword(ChangePasswordModel model)
         {
 
-            var response = await _authenticationServices.ChangePassword(User.Identity.Name, currentPassword, newPassword, confirmPassword);
+            var response = await _authenticationServices.ChangePassword(User.Identity.Name, model);
             if (response.Message == ApiResponseEnum.success.ToString())
             {
                 return Ok(response);

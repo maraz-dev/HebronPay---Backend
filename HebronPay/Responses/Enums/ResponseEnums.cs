@@ -19,6 +19,8 @@ namespace HebronPay.Responses.Enums
     public enum HebronPayTransactionTypeEnum
     {
         [Description("pending")] pending = 1,
+        [Description("credit")] credit = 2,
+        [Description("debit")] debit = 3,
  
 
     }

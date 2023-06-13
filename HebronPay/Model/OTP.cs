@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace HebronPay.Model
 {
@@ -7,6 +8,7 @@ namespace HebronPay.Model
         public int Id { get; set; }
         public int pin { get; set; }
         public string email { get; set; }
+        public DateTime dateExpired { get; set; }
     }
 
     public class Content

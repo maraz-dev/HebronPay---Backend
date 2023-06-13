@@ -12,6 +12,7 @@ namespace HebronPay.Authentication
         public string DateofBirth { get; set; }
         public bool isOtpVerified { get; set; }
         public bool isKycVerified { get; set; }
+        public bool isPinSet { get; set; }
 
         public int subAccountId { get; set; }
         public virtual SubAccount subAccount { get; set; }

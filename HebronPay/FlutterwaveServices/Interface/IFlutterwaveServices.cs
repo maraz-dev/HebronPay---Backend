@@ -10,5 +10,7 @@ namespace HebronPay.FlutterwaveServices.Interface
         public Task<FlutterWaveResponse> createSubAccount(CreateSubAccountRequestModel model);
         public Task<FlutterWaveResponse> initiateTransfer(InitiateTransferRequest model);
         public Task<FlutterWaveResponse> getWalletBalance(string account_reference);
+        public Task<FlutterWaveResponse> getBanks();
+        public Task<FlutterWaveResponse> getBankAccountDetails(ResolveAccountDetailsRequest model);
     }
 }

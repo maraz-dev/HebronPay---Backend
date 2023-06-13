@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -43,13 +44,24 @@ namespace HebronPay.Services.Implementation
             //PLEASEEEEEE DO NOT FORGET TO ADD A CHECK FOR WHETHER THE AMOUNT >= WALLET BALANCE FOR INSUFFICIENT FUNDS
 
             ReturnedResponse returnedResponse = new ReturnedResponse();
-            
+
+            if (model.amount <= 250)
+            {
+                return returnedResponse.ErrorResponse("AMOUNT CANNOT BE LESS THAN ₦250", null);
+            }
+
+
             //var user = await userManager.FindByNameAsync(username);
             var user = await _context.Users
                 .Where(u => u.UserName == username)
                 .Include(u=>u.hebronPayWallet)
                 .FirstAsync();
             var userHebronPayWallet = user.hebronPayWallet;
+
+            if(model.amount >= userHebronPayWallet.walletBalance)
+            {
+                return returnedResponse.ErrorResponse("INSUFFICIENT BALANCE FOR THIS TRANSACTION", null);
+            }
 
             try
             {
@@ -64,8 +76,11 @@ namespace HebronPay.Services.Implementation
                     hebronPayWalletId = userHebronPayWallet.id,
                     hebronPayWallet = userHebronPayWallet,
                 };
-
+                
+                userHebronPayWallet.walletBalance -= model.amount;
+                
                 await _context.HebronPayTransactions.AddAsync(transaction);
+                
                 await _context.SaveChangesAsync();
 
                 //userHebronPayWallet.hebronPayTransactions.Add(transaction);
@@ -177,15 +192,17 @@ namespace HebronPay.Services.Implementation
                 var hebronPayWallet = user.hebronPayWallet;
                 var userSubAccount = user.subAccount;
 
-                var transaction = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == hebronPayWallet.id && t.reference == reference).OrderBy(t => t.id).LastAsync();
+                var transaction = await _context.HebronPayTransactions
+                    .Where(t => t.hebronPayWalletId == hebronPayWallet.id && t.reference == reference && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription())
+                    .OrderBy(t => t.id).LastAsync();
                 if (transaction == null)
                 {
                     return returnedResponse.ErrorResponse("No such transaction exists",null);
                 }
 
-                var transactionResponse = mapper.Map<GetTransactionResponse>(transaction);
+                //var transactionResponse = mapper.Map<GetTransactionResponse>(transaction);
 
-                transactionResponse.flutterwaveSubAccountId = userSubAccount.flutterwaveSubAccountId;
+               /* transactionResponse.flutterwaveSubAccountId = userSubAccount.flutterwaveSubAccountId;
                 transactionResponse.account_reference = userSubAccount.account_reference;
                 transactionResponse.account_name = userSubAccount.account_name;
                 transactionResponse.barter_id = userSubAccount.barter_id;
@@ -195,12 +212,12 @@ namespace HebronPay.Services.Implementation
                 transactionResponse.nuban = userSubAccount.nuban;
                 transactionResponse.bank_name = userSubAccount.bank_name;
                 transactionResponse.bank_code = userSubAccount.bank_code;
-                transactionResponse.status = userSubAccount.status;
+                transactionResponse.status = userSubAccount.status;*/
 
                 
 
 
-                return returnedResponse.CorrectResponse(transactionResponse);
+                return returnedResponse.CorrectResponse(transaction);
 
             }
             catch (Exception e)
@@ -238,6 +255,217 @@ namespace HebronPay.Services.Implementation
             }
 
 
+
+        }
+
+        public async Task<ApiResponse> fundWallet(string username, FundWalletModel model)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            if(model.amount <= 200)
+            {
+                return returnedResponse.ErrorResponse("Cannot fund less than ₦200", null);
+            }
+
+            //var user = await userManager.FindByNameAsync(username);
+            var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+            var userHebronPayWallet = user.hebronPayWallet;
+
+            userHebronPayWallet.walletBalance += model.amount;
+
+            await _context.SaveChangesAsync();
+
+            HebronPayTransaction transaction = new HebronPayTransaction
+            {
+                amount = model.amount,
+                reference = generateRandomString(20),
+                date = DateTime.Today.ToString("dd-MM-yyyy"),
+                time = DateTime.Now.ToString("hh:mm tt"),
+                description = $"funding of {model.amount}",
+                type = HebronPayTransactionTypeEnum.credit.GetEnumDescription(),
+                hebronPayWalletId = userHebronPayWallet.id,
+                hebronPayWallet = userHebronPayWallet,
+            };
+            await _context.HebronPayTransactions.AddAsync(transaction);
+            await _context.SaveChangesAsync();
+
+            return returnedResponse.CorrectResponse("successfully funded wallet");
+
+        }
+
+        public async Task<ApiResponse> confirmTicketPayment(string receiverUsername, HebronPayTransaction pendingTransaction)
+        {
+
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            try
+            {
+                var receiverUser = await _context.Users
+                .Where(u => u.UserName == receiverUsername)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+
+                var receiverUserHebronPayWallet = receiverUser.hebronPayWallet;
+
+                if(receiverUserHebronPayWallet.id == pendingTransaction.hebronPayWallet.id)
+                {
+                    return returnedResponse.ErrorResponse("You cannot confirm this ticket because you initiated the transaction yourself", null);
+                }
+
+
+
+                var newpendingTransaction = await _context.HebronPayTransactions.Where(t => t.id == pendingTransaction.id && t.reference == pendingTransaction.reference).FirstAsync();
+                newpendingTransaction.type = HebronPayTransactionTypeEnum.debit.GetEnumDescription();
+
+                HebronPayTransaction transaction = new HebronPayTransaction
+                {
+                    amount = pendingTransaction.amount,
+                    reference = generateRandomString(20),
+                    date = DateTime.Today.ToString("dd-MM-yyyy"),
+                    time = DateTime.Now.ToString("hh:mm tt"),
+                    description = pendingTransaction.description,
+                    type = HebronPayTransactionTypeEnum.credit.GetEnumDescription(),
+                    hebronPayWalletId = receiverUserHebronPayWallet.id,
+                    hebronPayWallet = receiverUserHebronPayWallet,
+                };
+
+                receiverUserHebronPayWallet.walletBalance += pendingTransaction.amount;
+
+                await _context.HebronPayTransactions.AddAsync(transaction);
+                await _context.SaveChangesAsync();
+
+                return returnedResponse.CorrectResponse("Successfully completed transaction");
+            }
+            catch (Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+            }
+            
+
+
+        }
+
+        public async Task<ApiResponse> getAllTransactions()
+        {
+            //throw new NotImplementedException();
+            
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+            
+            var allTransactions = await _context.HebronPayTransactions.ToListAsync();
+
+            return returnedResponse.CorrectResponse(allTransactions);
+        }
+
+        public async Task<ApiResponse> getUsersTransactions(string username)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            try
+            {
+                var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+                var userHebronPayWallet = user.hebronPayWallet;
+
+                var allTransactions = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == userHebronPayWallet.id).ToListAsync();
+
+                return returnedResponse.CorrectResponse(allTransactions);
+
+            }
+            catch(Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+            }
+            
+        }
+
+        public async Task<ApiResponse> resolveBankAccount(ResolveAccountDetailsRequest model)
+        {
+
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            try
+            {
+                var flutterwaveResponse = await _flutterwaveServices.getBankAccountDetails(model);
+
+                if (flutterwaveResponse.status != FlutterWaveResponseEnum.success.GetEnumDescription())
+                {
+                    return returnedResponse.ErrorResponse(flutterwaveResponse.message, null);
+                }
+                ResolveAccountDetailsResponse userBankAccount = JsonConvert.DeserializeObject<ResolveAccountDetailsResponse>(flutterwaveResponse.data.ToString());
+                return returnedResponse.CorrectResponse(userBankAccount);
+            }
+            catch(Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+
+            }
+
+
+        }
+
+        public async Task<ApiResponse> getAllBanks()
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            try
+            {
+                var flutterwaveResponse = await _flutterwaveServices.getBanks();
+
+                if (flutterwaveResponse.status != FlutterWaveResponseEnum.success.GetEnumDescription())
+                {
+                    return returnedResponse.ErrorResponse(flutterwaveResponse.message, null);
+                }
+                List<Bank> listOfBanks = JsonConvert.DeserializeObject<List<Bank>>(flutterwaveResponse.data.ToString());
+                return returnedResponse.CorrectResponse(listOfBanks);
+            }
+            catch (Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+
+            }
+
+        }
+
+        public async Task<ApiResponse> withdraw(string username, WithdrawModel model)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            if (model.amount <= 1000)
+            {
+                return returnedResponse.ErrorResponse("Cannot withdraw less than ₦1000", null);
+            }
+
+            //var user = await userManager.FindByNameAsync(username);
+            var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+            var userHebronPayWallet = user.hebronPayWallet;
+
+            userHebronPayWallet.walletBalance -= model.amount;
+
+            await _context.SaveChangesAsync();
+
+            HebronPayTransaction transaction = new HebronPayTransaction
+            {
+                amount = model.amount,
+                reference = generateRandomString(20),
+                date = DateTime.Today.ToString("dd-MM-yyyy"),
+                time = DateTime.Now.ToString("hh:mm tt"),
+                description = $"withdrawal of ₦{model.amount} to {model.account_name} for {model.narration??""}",
+                type = HebronPayTransactionTypeEnum.debit.GetEnumDescription(),
+                hebronPayWalletId = userHebronPayWallet.id,
+                hebronPayWallet = userHebronPayWallet,
+            };
+            await _context.HebronPayTransactions.AddAsync(transaction);
+            await _context.SaveChangesAsync();
+
+            return returnedResponse.CorrectResponse("successfully withdrew from wallet");
 
         }
     }

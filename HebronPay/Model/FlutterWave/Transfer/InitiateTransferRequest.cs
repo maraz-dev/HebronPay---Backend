@@ -14,6 +14,26 @@ namespace HebronPay.Model.FlutterWave.Transfer
         public string debit_subaccount { get; set; } //reference of the sender's sub account
     }
 
+    public class ResolveAccountDetailsRequest
+    {
+        public string account_number{ get; set; }
+        public string account_bank{ get; set; }
+    }
+
+    public class ResolveAccountDetailsResponse
+    {
+        public string account_number { get; set; }
+        public string account_name { get; set; }
+    }
+
+    public class Bank
+    {
+        public int id { get; set; }
+        public string code { get; set; }
+        public string name { get; set; }
+    }
+
+
     public class InitiateTransferResponse
     {
         public int id { get; set; }

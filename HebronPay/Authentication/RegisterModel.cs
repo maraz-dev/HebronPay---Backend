@@ -81,4 +81,50 @@ namespace HebronPay.Authentication
         public int newWalletPin { get; set; }
         public int confirmNewWalletPin { get; set; }
     }
+
+    public class ValidateModel
+    {
+        //These are the properties to be validated before creating an account - Username, password, etc
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+
+
+        //[Required(ErrorMessage = "USERNAME IS REQUIRED")]
+        public string UserName { get; set; }
+
+
+        //[Required(ErrorMessage = "EMAIL IS REQUIRED")]
+        public string Email { get; set; }
+
+
+        [Required(ErrorMessage = "PASSWORD IS REQUIRED")]
+        public string Password { get; set; }
+        public string ConfirmPassword { get; set; }
+
+    }
+
+
+    public class ForgotPasswordModel
+    {
+
+        public string email { get; set; }
+        public string newPassword { get; set; }
+
+
+
+        public string confirmPassword { get; set; }
+
+    }
+
+    public class ChangePasswordModel
+    {
+        public string currentPassword { get; set; }
+        public string newPassword { get; set; }
+
+        public string confirmPassword { get; set; }
+
+    }
+
+
+
 }

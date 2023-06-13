@@ -17,6 +17,7 @@ namespace HebronPay.Authentication
                 cfg.CreateMap<AuthorizationToken, LoginResponseModel>();
                 cfg.CreateMap<SubAccount, GetTransactionResponse>();
                 cfg.CreateMap<HebronPayTransaction, GetTransactionResponse>();
+                cfg.CreateMap<SignUpModel, ValidateModel>();
 
 
 
