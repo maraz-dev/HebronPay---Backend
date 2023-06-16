@@ -1,6 +1,9 @@
 using HebronPay.Authentication;
 using HebronPay.FlutterwaveServices.Implementation;
 using HebronPay.FlutterwaveServices.Interface;
+using HebronPay.Model.EmailSettings;
+using HebronPay.Model.FlutterWave;
+using HebronPay.Model.RapidAPI;
 using HebronPay.Services.Implementation;
 using HebronPay.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -74,7 +77,10 @@ namespace HebronPay
                 };
 
             });
-
+            
+            services.Configure<FlutterwaveSettings>(Configuration.GetSection("FlutterwaveSettings"));
+            services.Configure<RapidAPISettings>(Configuration.GetSection("RapidAPISettings"));
+            services.Configure<EmailSettings>(Configuration.GetSection("EmailSettings"));
 
             /*services.AddSwaggerGen(c =>
             {

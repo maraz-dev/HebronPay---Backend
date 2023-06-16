@@ -2,20 +2,29 @@
 using HebronPay.Authentication;
 using HebronPay.FlutterwaveServices.Interface;
 using HebronPay.Model;
+using HebronPay.Model.EmailSettings;
 using HebronPay.Model.FlutterWave.SubAccout;
 using HebronPay.Model.FlutterWave.Transfer;
+using HebronPay.Model.RapidAPI;
 using HebronPay.Model.Transactions;
 using HebronPay.Responses;
 using HebronPay.Responses.Enums;
 using HebronPay.Services.Interface;
+//using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Net.Mail;
+using System.Net;
+using OfficeOpenXml;
+using System.IO;
+using System.Net.Mime;
 
 namespace HebronPay.Services.Implementation
 {
@@ -24,12 +33,15 @@ namespace HebronPay.Services.Implementation
         private readonly UserManager<ApplicationUser> userManager;
         private ApplicationDbContext _context;
         private readonly IFlutterwaveServices _flutterwaveServices;
+        private readonly EmailSettings _emailSettings;
 
-        public TransactionServices(UserManager<ApplicationUser> userManager, ApplicationDbContext context, IFlutterwaveServices flutterwaveServices)
+        public TransactionServices(UserManager<ApplicationUser> userManager, ApplicationDbContext context, IOptions<EmailSettings> emailSettings, IFlutterwaveServices flutterwaveServices)
         {
             this.userManager = userManager;
             _context = context;
             _flutterwaveServices = flutterwaveServices;
+            _emailSettings = emailSettings.Value;
+
 
 
         }
@@ -467,6 +479,134 @@ namespace HebronPay.Services.Implementation
 
             return returnedResponse.CorrectResponse("successfully withdrew from wallet");
 
+        }
+
+
+
+        public async Task<ApiResponse> sendEmailAsync(string email, string subject, string message)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                ExcelPackage excelPackage = new ExcelPackage();
+                var worksheet = excelPackage.Workbook.Worksheets.Add("Sheet1");
+                worksheet.Cells["A1"].Value = "Hello, World!";
+                byte[] excelBytes = excelPackage.GetAsByteArray();
+           
+                var senderEmail = _emailSettings.emailAddress;
+                var senderPassword = _emailSettings.password;
+
+                var client = new SmtpClient("smtp.gmail.com", 587)
+                {
+                    EnableSsl = true,
+                    Credentials = new NetworkCredential(senderEmail, senderPassword)
+                };
+
+                MailMessage mailMessage = new MailMessage(senderEmail, email);
+                mailMessage.Subject = subject;
+                mailMessage.Body = message;
+                Attachment attachment = new Attachment(new MemoryStream(excelBytes), "ExcelFile.xlsx", MediaTypeNames.Application.Octet);
+                mailMessage.Attachments.Add(attachment);
+
+                await client.SendMailAsync(mailMessage);
+
+                return returnedResponse.CorrectResponse("successfully sent message");
+
+            }
+
+            catch (Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+            }
+            
+
+
+        }
+
+        public async Task<ApiResponse> generateEod(string username)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+            
+            try
+            {
+                var todayDate = DateTime.Today.ToString("dd-MM-yyyy");
+                //GET USER'S TRANSACTIONS FOR THE DAY
+                var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+                var userHebronPayWallet = user.hebronPayWallet;
+
+                var allTransactions = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == userHebronPayWallet.id).ToListAsync();
+                
+                List<HebronPayTransaction> usersDailyTransactions = new List<HebronPayTransaction>();
+
+                foreach(var transaction in allTransactions)
+                {
+                    if(transaction.date == todayDate)
+                    {
+                        usersDailyTransactions.Add(transaction);
+                    }
+                    
+
+                }
+
+                //GENERATE EXCEL FILE FOR THE TRANSACTIONS
+
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                ExcelPackage excelPackage = new ExcelPackage();
+                var worksheet = excelPackage.Workbook.Worksheets.Add($"EOD for {user.UserName} on {todayDate}");
+                worksheet.Cells[1, 1].Value = "Description";
+                worksheet.Cells[1, 2].Value = "Amount";
+                worksheet.Cells[1, 3].Value = "Reference";
+                worksheet.Cells[1, 4].Value = "Type";
+                worksheet.Cells[1, 5].Value = "Date";
+                worksheet.Cells[1, 6].Value = "Time";
+
+                int row = 2; // Start from the second row
+                foreach (var transaction in usersDailyTransactions)
+                {
+                    worksheet.Cells[row, 1].Value = transaction.description;
+                    worksheet.Cells[row, 2].Value = transaction.amount;
+                    worksheet.Cells[row, 3].Value = transaction.reference;
+                    worksheet.Cells[row, 4].Value = transaction.type;
+                    worksheet.Cells[row, 5].Value = transaction.date;
+                    worksheet.Cells[row, 6].Value = transaction.time;
+
+                    row++;
+                }
+
+                byte[] excelBytes = excelPackage.GetAsByteArray();
+
+                //send the excel file as an email 
+                var senderEmail = _emailSettings.emailAddress;
+                var senderPassword = _emailSettings.password;
+
+                var client = new SmtpClient("smtp.gmail.com", 587)
+                {
+                    EnableSsl = true,
+                    Credentials = new NetworkCredential(senderEmail, senderPassword)
+                };
+
+                MailMessage mailMessage = new MailMessage(senderEmail, user.Email);
+                mailMessage.Subject = "End of Day Report";
+                mailMessage.Body = $"Hello {user.UserName}, Please kindly find attached your End of Day Transactions for today: {todayDate}. Thank you for using Hebron Pay";
+                Attachment attachment = new Attachment(new MemoryStream(excelBytes), "ExcelFile.xlsx", MediaTypeNames.Application.Octet);
+                mailMessage.Attachments.Add(attachment);
+
+                await client.SendMailAsync(mailMessage);
+
+                return returnedResponse.CorrectResponse("successfully sent message");
+
+
+
+
+            }
+            catch (Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+            }
         }
     }
 }

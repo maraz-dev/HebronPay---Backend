@@ -3,6 +3,7 @@ using HebronPay.Model;
 using HebronPay.Model.FlutterWave.Transfer;
 using HebronPay.Model.Transactions;
 using HebronPay.Responses;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace HebronPay.Services.Interface
@@ -32,6 +33,14 @@ namespace HebronPay.Services.Interface
 
         //this endpoint is to get user account details
         public Task<ApiResponse> resolveBankAccount(ResolveAccountDetailsRequest model);
+        
+        
+        
+        //send email asyync
+        public Task<ApiResponse> sendEmailAsync(string email, string subject, string message);
+
+        //get transactions in a day
+        public Task<ApiResponse> generateEod(string username);
 
     }
 }

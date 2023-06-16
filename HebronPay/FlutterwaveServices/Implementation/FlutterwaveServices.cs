@@ -9,14 +9,17 @@ using Microsoft.OpenApi.Writers;
 using System.Text.Json.Serialization;
 using Newtonsoft.Json;
 using HebronPay.Model.FlutterWave.Transfer;
+using Microsoft.Extensions.Options;
+using HebronPay.Model.FlutterWave;
 
 namespace HebronPay.FlutterwaveServices.Implementation
 {
     public class FlutterwaveService : IFlutterwaveServices
     {
-        public FlutterwaveService()
+        private readonly FlutterwaveSettings _flutterWaveSettings;
+        public FlutterwaveService(IOptions<FlutterwaveSettings> flutterWaveSettings)
         {
-
+            _flutterWaveSettings = flutterWaveSettings.Value;
         }
 
         public async Task<FlutterWaveResponse> createSubAccount(CreateSubAccountRequestModel model)
@@ -190,7 +193,7 @@ namespace HebronPay.FlutterwaveServices.Implementation
             client.BaseAddress = new Uri(baseUrl);
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            client.DefaultRequestHeaders.Add("Authorization", "Bearer FLWSECK-d439586d86533056270f282797e0c42d-18867bef15avt-X");
+            client.DefaultRequestHeaders.Add("Authorization",_flutterWaveSettings.authorizationKey);
 
             return client;
         }

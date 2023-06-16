@@ -2,13 +2,16 @@
 using HebronPay.Authentication;
 using HebronPay.FlutterwaveServices.Interface;
 using HebronPay.Model;
+using HebronPay.Model.FlutterWave;
 using HebronPay.Model.FlutterWave.SubAccout;
+using HebronPay.Model.RapidAPI;
 using HebronPay.Responses;
 using HebronPay.Responses.Enums;
 using HebronPay.Services.Interface;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using System;
@@ -30,16 +33,18 @@ namespace HebronPay.Services.Implementation
         private readonly IConfiguration _configuration;
         private readonly IFlutterwaveServices _flutterwaveServices;
         private readonly RoleManager<IdentityRole> roleManager;
+        private readonly RapidAPISettings _rapidAPISettings;
 
 
         private ApplicationDbContext _context;
-        public AuthenticationServices(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, ApplicationDbContext context, IFlutterwaveServices flutterwaveServices)
+        public AuthenticationServices(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<RapidAPISettings> rapidApiSettings, IConfiguration configuration, ApplicationDbContext context, IFlutterwaveServices flutterwaveServices)
         {
             this.userManager = userManager;
             _configuration = configuration;
             this.roleManager = roleManager;
             _context = context;
             _flutterwaveServices = flutterwaveServices;
+            _rapidAPISettings = rapidApiSettings.Value;
         }
 
 
@@ -172,8 +177,11 @@ namespace HebronPay.Services.Implementation
             client.BaseAddress = new Uri(baseUrl);
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            client.DefaultRequestHeaders.Add("X-RapidAPI-Key", "12aaead381mshb7c62fe6ca523a7p122464jsn284af6ccfc7b");
-            client.DefaultRequestHeaders.Add("X-RapidAPI-Host", "rapidprod-sendgrid-v1.p.rapidapi.com");
+
+            client.DefaultRequestHeaders.Add("X-RapidAPI-Key", _rapidAPISettings.rapidApiKey);
+            client.DefaultRequestHeaders.Add("X-RapidAPI-Host", _rapidAPISettings.rapidApiHost);
+
+
 
             SendEmailRequest request = new SendEmailRequest
             {
@@ -383,6 +391,11 @@ namespace HebronPay.Services.Implementation
                 }
 
                 var user = await userManager.FindByEmailAsync(email);
+                if(user == null)
+                {
+                    return returnedResponse.ErrorResponse("User does not exist", null);
+
+                }
                 user.isOtpVerified = true;
 
                 await _context.SaveChangesAsync();

@@ -259,5 +259,39 @@ namespace HebronPay.Controllers
             }
 
         }
+
+        //[Authorize]
+        [HttpPost("sendEmail")]
+        public async Task<ActionResult<ApiResponse>> sendemail()
+        {
+
+            var response = await _transactionServices.sendEmailAsync("glory.iweriebor@stu.cu.edu.ng","TEST EMAIL","congratulations, it reallt worked");
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
+        [Authorize]
+        [HttpPost("GenerateEod")]
+        public async Task<ActionResult<ApiResponse>> GenerateEod()
+        {
+
+            var response = await _transactionServices.generateEod(User.Identity.Name);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
     }
 }
