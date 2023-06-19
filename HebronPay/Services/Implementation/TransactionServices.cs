@@ -384,6 +384,7 @@ namespace HebronPay.Services.Implementation
                 var userHebronPayWallet = user.hebronPayWallet;
 
                 var allTransactions = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == userHebronPayWallet.id).ToListAsync();
+                allTransactions.Reverse();
 
                 return returnedResponse.CorrectResponse(allTransactions);
 
