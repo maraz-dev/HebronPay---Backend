@@ -206,6 +206,23 @@ namespace HebronPay.Controllers
 
         }
 
+        [Authorize]
+        [HttpGet("GetUsersPendingTransactions")]
+        public async Task<ActionResult<ApiResponse>> GetUsersPendingTransactions()
+        {
+
+            var response = await _transactionServices.getUsersPendingTransactions(User.Identity.Name);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
+
 
         [Authorize]
         [HttpPost("ResolveBankAccountDetails")]

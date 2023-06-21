@@ -27,6 +27,9 @@ namespace HebronPay.Services.Interface
         //this endpoint is to get all transactions of a SPECIFIC USER
         public Task<ApiResponse> getUsersTransactions(string username);
 
+        //this endpoint is to get all pending transactions of a SPECIFIC USER
+        public Task<ApiResponse> getUsersPendingTransactions(string username);
+
 
         //this endpoint is to get all banks 
         public Task<ApiResponse> getAllBanks();

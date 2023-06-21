@@ -81,8 +81,8 @@ namespace HebronPay.Services.Implementation
                 {
                     amount = model.amount,
                     reference = generateRandomString(20),
-                    date = DateTime.Today.ToString("dd-MM-yyyy"),
-                    time = DateTime.Now.ToString("hh:mm tt"),
+                    date = getCurrentdate(),
+                    time = getCurrentTime(),
                     description = model.description,
                     type = HebronPayTransactionTypeEnum.pending.GetEnumDescription(),
                     hebronPayWalletId = userHebronPayWallet.id,
@@ -294,8 +294,8 @@ namespace HebronPay.Services.Implementation
             {
                 amount = model.amount,
                 reference = generateRandomString(20),
-                date = DateTime.Today.ToString("dd-MM-yyyy"),
-                time = DateTime.Now.ToString("hh:mm tt"),
+                date = getCurrentdate(),
+                time = getCurrentTime(),
                 description = $"funding of {model.amount}",
                 type = HebronPayTransactionTypeEnum.credit.GetEnumDescription(),
                 hebronPayWalletId = userHebronPayWallet.id,
@@ -329,15 +329,24 @@ namespace HebronPay.Services.Implementation
 
 
 
-                var newpendingTransaction = await _context.HebronPayTransactions.Where(t => t.id == pendingTransaction.id && t.reference == pendingTransaction.reference).FirstAsync();
+                var newpendingTransaction = await _context.HebronPayTransactions.Where(t => t.id == pendingTransaction.id && t.reference == pendingTransaction.reference && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription()).FirstAsync();
+
+                if(newpendingTransaction == null)
+                {
+                    return returnedResponse.ErrorResponse("This transaction does not exist", null);
+
+                }
+
                 newpendingTransaction.type = HebronPayTransactionTypeEnum.debit.GetEnumDescription();
+                newpendingTransaction.time = getCurrentTime();
+                newpendingTransaction.date = getCurrentdate();
 
                 HebronPayTransaction transaction = new HebronPayTransaction
                 {
                     amount = pendingTransaction.amount,
                     reference = generateRandomString(20),
-                    date = DateTime.Today.ToString("dd-MM-yyyy"),
-                    time = DateTime.Now.ToString("hh:mm tt"),
+                    date = getCurrentdate(),
+                    time = getCurrentTime(),
                     description = pendingTransaction.description,
                     type = HebronPayTransactionTypeEnum.credit.GetEnumDescription(),
                     hebronPayWalletId = receiverUserHebronPayWallet.id,
@@ -383,7 +392,8 @@ namespace HebronPay.Services.Implementation
                 .FirstAsync();
                 var userHebronPayWallet = user.hebronPayWallet;
 
-                var allTransactions = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == userHebronPayWallet.id).ToListAsync();
+                var allTransactions = await _context.HebronPayTransactions.Where(t => t.hebronPayWalletId == userHebronPayWallet.id && t.type != HebronPayTransactionTypeEnum.pending.GetEnumDescription())
+                    .ToListAsync();
                 allTransactions.Reverse();
 
                 return returnedResponse.CorrectResponse(allTransactions);
@@ -468,8 +478,8 @@ namespace HebronPay.Services.Implementation
             {
                 amount = model.amount,
                 reference = generateRandomString(20),
-                date = DateTime.Today.ToString("dd-MM-yyyy"),
-                time = DateTime.Now.ToString("hh:mm tt"),
+                date = getCurrentdate(),
+                time = getCurrentTime(),
                 description = $"withdrawal of ₦{model.amount} to {model.account_name} for {model.narration??""}",
                 type = HebronPayTransactionTypeEnum.debit.GetEnumDescription(),
                 hebronPayWalletId = userHebronPayWallet.id,
@@ -602,6 +612,66 @@ namespace HebronPay.Services.Implementation
 
 
 
+
+            }
+            catch (Exception e)
+            {
+                return returnedResponse.ErrorResponse(e.Message, null);
+            }
+        }
+
+        public string getCurrentTime()
+        {
+            // Get the current time in your current location
+
+            DateTime currentTime = DateTime.Now;
+
+            // Get the time zone of your current location
+            TimeZoneInfo timeZone = TimeZoneInfo.Local;
+
+            // Convert the current time to the time zone of your current location
+            DateTime currentLocalTime = TimeZoneInfo.ConvertTime(currentTime, timeZone);
+
+            var newcurrentTime = currentLocalTime.ToString("hh:mm tt");
+
+            return newcurrentTime;
+
+        }
+
+        public string getCurrentdate()
+        {
+            // Get the current time in your current location
+
+            DateTime currentTime = DateTime.Now;
+
+            // Get the time zone of your current location
+            TimeZoneInfo timeZone = TimeZoneInfo.Local;
+
+            // Convert the current time to the time zone of your current location
+            DateTime currentLocalTime = TimeZoneInfo.ConvertTime(currentTime, timeZone);
+            var newcurrentDate = currentLocalTime.ToString("dd-MM-yyyy");
+
+            return newcurrentDate;
+
+        }
+
+        public async Task<ApiResponse> getUsersPendingTransactions(string username)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+            try
+            {
+                var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .FirstAsync();
+                var userHebronPayWallet = user.hebronPayWallet;
+
+                var allTransactions = await _context.HebronPayTransactions
+                    .Where(t => t.hebronPayWalletId == userHebronPayWallet.id && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription())
+                    .ToListAsync();
+                allTransactions.Reverse();
+
+                return returnedResponse.CorrectResponse(allTransactions);
 
             }
             catch (Exception e)
