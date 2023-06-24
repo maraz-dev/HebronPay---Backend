@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using HebronPay.DTOs;
 using HebronPay.Model;
 using HebronPay.Model.FlutterWave.SubAccout;
 using HebronPay.Model.Transactions;
@@ -18,6 +19,7 @@ namespace HebronPay.Authentication
                 cfg.CreateMap<SubAccount, GetTransactionResponse>();
                 cfg.CreateMap<HebronPayTransaction, GetTransactionResponse>();
                 cfg.CreateMap<SignUpModel, ValidateModel>();
+                cfg.CreateMap<HebronPayTransaction, GetTransactionDTO>();
 
 
 

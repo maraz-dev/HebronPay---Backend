@@ -25,6 +25,7 @@ using System.Net;
 using OfficeOpenXml;
 using System.IO;
 using System.Net.Mime;
+using HebronPay.DTOs;
 
 namespace HebronPay.Services.Implementation
 {
@@ -41,7 +42,6 @@ namespace HebronPay.Services.Implementation
             _context = context;
             _flutterwaveServices = flutterwaveServices;
             _emailSettings = emailSettings.Value;
-
 
 
         }
@@ -154,10 +154,22 @@ namespace HebronPay.Services.Implementation
         {
             //PLEASEEEE REFUND THE MONEY BACK TO THE USER'S HEBRON PAY WALLET
             ReturnedResponse returnedResponse = new ReturnedResponse();
-            var ticket = await _context.HebronPayTransactions.Where(t => t.reference == reference).OrderBy(t=>t.id).LastAsync();
+            var ticket = await _context.HebronPayTransactions.Where(t => t.reference == reference && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription())
+                .OrderBy(t=>t.id).LastAsync();
+
+            if(ticket == null)
+            {
+                return returnedResponse.ErrorResponse("TICKET DOES NOT EXIST", null);
+
+            }
 
             try
             {
+                var user = await _context.Users.Where(u => u.hebronPayWalletId == ticket.hebronPayWalletId)
+                    .Include(u=>u.hebronPayWallet)
+                    .FirstAsync();
+                user.hebronPayWallet.walletBalance += ticket.amount;
+
                 _context.HebronPayTransactions.Remove(ticket);
                 await _context.SaveChangesAsync();
                 return returnedResponse.CorrectResponse("successfully deleted ticket");
@@ -200,36 +212,43 @@ namespace HebronPay.Services.Implementation
 
             try
             {
-                var user = await _context.Users.Where(u => u.UserName == username).Include(u => u.subAccount).Include(u => u.hebronPayWallet).FirstAsync();
-                var hebronPayWallet = user.hebronPayWallet;
-                var userSubAccount = user.subAccount;
+                //var user = await _context.Users.Where(u => u.UserName == username).Include(u => u.subAccount).Include(u => u.hebronPayWallet).FirstAsync();
+                //var hebronPayWallet = user.hebronPayWallet;
+                //var userSubAccount = user.subAccount;
 
                 var transaction = await _context.HebronPayTransactions
-                    .Where(t => t.hebronPayWalletId == hebronPayWallet.id && t.reference == reference && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription())
+                    .Where(t=> t.reference == reference && t.type == HebronPayTransactionTypeEnum.pending.GetEnumDescription())
                     .OrderBy(t => t.id).LastAsync();
                 if (transaction == null)
                 {
                     return returnedResponse.ErrorResponse("No such transaction exists",null);
                 }
 
+                var userToBeDebited = await _context.Users.Where(u => u.hebronPayWalletId == transaction.hebronPayWalletId).FirstAsync();
+
+
+
+                var getTransactionDTO = mapper.Map<GetTransactionDTO>(transaction);
+                getTransactionDTO.username = userToBeDebited.UserName;
+
                 //var transactionResponse = mapper.Map<GetTransactionResponse>(transaction);
 
-               /* transactionResponse.flutterwaveSubAccountId = userSubAccount.flutterwaveSubAccountId;
-                transactionResponse.account_reference = userSubAccount.account_reference;
-                transactionResponse.account_name = userSubAccount.account_name;
-                transactionResponse.barter_id = userSubAccount.barter_id;
-                transactionResponse.email = userSubAccount.email;
-                transactionResponse.mobilenumber = userSubAccount.mobilenumber;
-                transactionResponse.country = userSubAccount.country;
-                transactionResponse.nuban = userSubAccount.nuban;
-                transactionResponse.bank_name = userSubAccount.bank_name;
-                transactionResponse.bank_code = userSubAccount.bank_code;
-                transactionResponse.status = userSubAccount.status;*/
-
-                
+                /* transactionResponse.flutterwaveSubAccountId = userSubAccount.flutterwaveSubAccountId;
+                 transactionResponse.account_reference = userSubAccount.account_reference;
+                 transactionResponse.account_name = userSubAccount.account_name;
+                 transactionResponse.barter_id = userSubAccount.barter_id;
+                 transactionResponse.email = userSubAccount.email;
+                 transactionResponse.mobilenumber = userSubAccount.mobilenumber;
+                 transactionResponse.country = userSubAccount.country;
+                 transactionResponse.nuban = userSubAccount.nuban;
+                 transactionResponse.bank_name = userSubAccount.bank_name;
+                 transactionResponse.bank_code = userSubAccount.bank_code;
+                 transactionResponse.status = userSubAccount.status;*/
 
 
-                return returnedResponse.CorrectResponse(transaction);
+
+
+                return returnedResponse.CorrectResponse(getTransactionDTO);
 
             }
             catch (Exception e)
@@ -555,7 +574,7 @@ namespace HebronPay.Services.Implementation
 
                 foreach(var transaction in allTransactions)
                 {
-                    if(transaction.date == todayDate)
+                    if(transaction.date == todayDate && transaction.type != HebronPayTransactionTypeEnum.pending.GetEnumDescription())
                     {
                         usersDailyTransactions.Add(transaction);
                     }
@@ -563,6 +582,18 @@ namespace HebronPay.Services.Implementation
 
                 }
 
+                var userCreditTransactions = usersDailyTransactions.Where(t => t.type == HebronPayTransactionTypeEnum.credit.GetEnumDescription()).ToList();
+                var totalNumberOfCreditTransactions = userCreditTransactions.Count();
+                var totalSumOfCreditTransactions = userCreditTransactions.Sum(t => t.amount);
+
+
+                var usersDebitTransactions = usersDailyTransactions.Where(t => t.type == HebronPayTransactionTypeEnum.debit.GetEnumDescription()).ToList();
+                var totalNumberOfDebitTransactions = usersDebitTransactions.Count();
+                var totalSumOfDebitTransactions = usersDebitTransactions.Sum(t => t.amount);
+
+                var totalNumberOfTransactions = usersDailyTransactions.Count();
+
+                var netSpend = totalSumOfCreditTransactions - totalSumOfDebitTransactions;
                 //GENERATE EXCEL FILE FOR THE TRANSACTIONS
 
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -587,6 +618,25 @@ namespace HebronPay.Services.Implementation
 
                     row++;
                 }
+                row++;
+                worksheet.Cells[row, 1].Value = "Total Number of credit transactions"; worksheet.Cells[row, 2].Value = totalNumberOfCreditTransactions;
+                
+                row++;
+                worksheet.Cells[row, 1].Value = "Total worth of credit transactions"; worksheet.Cells[row, 2].Value = totalSumOfCreditTransactions;
+
+                row+=2;
+                worksheet.Cells[row, 1].Value = "Total number of debit transactions"; worksheet.Cells[row, 2].Value = totalNumberOfDebitTransactions;
+
+                row++;
+                worksheet.Cells[row, 1].Value = "Total worth of debit transactions"; worksheet.Cells[row, 2].Value = totalSumOfDebitTransactions;
+
+                row += 2;
+                worksheet.Cells[row, 1].Value = "Total number of transactions"; worksheet.Cells[row, 2].Value = totalNumberOfTransactions;
+
+                row++;
+                worksheet.Cells[row, 1].Value = "Total net spend"; worksheet.Cells[row, 2].Value = netSpend;
+
+
 
                 byte[] excelBytes = excelPackage.GetAsByteArray();
 
