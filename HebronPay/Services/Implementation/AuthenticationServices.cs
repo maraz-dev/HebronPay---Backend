@@ -854,5 +854,29 @@ namespace HebronPay.Services.Implementation
             return false;
         }
 
+        public async Task<ApiResponse> GetUserDetails(string username)
+        {
+            ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            try
+            {
+                var user = await _context.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.hebronPayWallet)
+                .Include(u => u.subAccount)
+                .FirstAsync();
+
+                return returnedResponse.CorrectResponse(user);
+            }
+
+            catch(Exception e)
+            {
+                return returnedResponse.ErrorResponse("Could not retrieve user's details", null);
+
+            }
+            
+
+            
+        }
     }
 }

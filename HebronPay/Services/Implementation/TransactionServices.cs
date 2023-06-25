@@ -229,7 +229,7 @@ namespace HebronPay.Services.Implementation
 
 
                 var getTransactionDTO = mapper.Map<GetTransactionDTO>(transaction);
-                getTransactionDTO.username = userToBeDebited.UserName;
+                getTransactionDTO.username = $"{userToBeDebited.FirstName} {userToBeDebited.LastName}";
 
                 //var transactionResponse = mapper.Map<GetTransactionResponse>(transaction);
 

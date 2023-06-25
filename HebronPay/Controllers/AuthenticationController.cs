@@ -189,5 +189,22 @@ namespace HebronPay.Controllers
 
         }
 
+
+        [Authorize]
+        [HttpGet("GetUserDetails")]
+        public async Task<ActionResult<ApiResponse>> GetUserDetails()
+        {
+
+            var response = await _authenticationServices.GetUserDetails(User.Identity.Name);
+            if (response.Message == ApiResponseEnum.success.ToString())
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(response);
+            }
+
+        }
     }
 }

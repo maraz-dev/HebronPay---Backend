@@ -10,6 +10,7 @@ namespace HebronPay.Services.Interface
         public Task<ApiResponse> CheckValidations(ValidateModel model);
         public Task<ApiResponse> SignUpUser(SignUpModel model);
         public Task<ApiResponse> Login(LoginModel model);
+        public Task<ApiResponse> GetUserDetails(string username);
         public Task<ApiResponse> SetPin(string username, SetPinModel model);
         public Task<ApiResponse> ChangePin(string username, ChangePinModel model);
         public Task<ApiResponse> CreateOTP(string email);
