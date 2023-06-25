@@ -652,7 +652,7 @@ namespace HebronPay.Services.Implementation
 
                 MailMessage mailMessage = new MailMessage(senderEmail, user.Email);
                 mailMessage.Subject = "End of Day Report";
-                mailMessage.Body = $"Hello {user.UserName}, Please kindly find attached your End of Day Transactions for today: {todayDate}. Thank you for using Hebron Pay";
+                mailMessage.Body = $"Hello {user.UserName.ToUpper()}, Please kindly find attached your End of Day Transactions for today: {todayDate}. Thank you for using Hebron Pay";
                 Attachment attachment = new Attachment(new MemoryStream(excelBytes), "ExcelFile.xlsx", MediaTypeNames.Application.Octet);
                 mailMessage.Attachments.Add(attachment);
 
