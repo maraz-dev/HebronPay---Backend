@@ -2,6 +2,7 @@
 using HebronPay.Authentication;
 using HebronPay.FlutterwaveServices.Interface;
 using HebronPay.Model;
+using HebronPay.Model.EmailSettings;
 using HebronPay.Model.FlutterWave;
 using HebronPay.Model.FlutterWave.SubAccout;
 using HebronPay.Model.RapidAPI;
@@ -18,8 +19,10 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -34,10 +37,11 @@ namespace HebronPay.Services.Implementation
         private readonly IFlutterwaveServices _flutterwaveServices;
         private readonly RoleManager<IdentityRole> roleManager;
         private readonly RapidAPISettings _rapidAPISettings;
+        private readonly EmailSettings _emailSettings;
 
 
         private ApplicationDbContext _context;
-        public AuthenticationServices(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<RapidAPISettings> rapidApiSettings, IConfiguration configuration, ApplicationDbContext context, IFlutterwaveServices flutterwaveServices)
+        public AuthenticationServices(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<EmailSettings> emailSettings, IOptions<RapidAPISettings> rapidApiSettings, IConfiguration configuration, ApplicationDbContext context, IFlutterwaveServices flutterwaveServices)
         {
             this.userManager = userManager;
             _configuration = configuration;
@@ -45,6 +49,7 @@ namespace HebronPay.Services.Implementation
             _context = context;
             _flutterwaveServices = flutterwaveServices;
             _rapidAPISettings = rapidApiSettings.Value;
+            _emailSettings = emailSettings.Value;
         }
 
 
@@ -164,6 +169,13 @@ namespace HebronPay.Services.Implementation
         public async Task<ApiResponse> SendOTP( string email)
         {
             ReturnedResponse returnedResponse = new ReturnedResponse();
+
+            var user = await _context.Users.Where(u=>u.Email == email).FirstOrDefaultAsync();
+            if (user == null)
+            {
+                return returnedResponse.ErrorResponse("User does not exist", null);
+            }
+            /*ReturnedResponse returnedResponse = new ReturnedResponse();
             var newOTP = await CreateOTP(email);
 
             if (newOTP.error != null)
@@ -229,6 +241,41 @@ namespace HebronPay.Services.Implementation
                 }
 
                 return returnedResponse.ErrorResponse(Res.Content.ToString(), null);
+
+            }
+
+            catch (Exception my_ex)
+            {
+                return returnedResponse.ErrorResponse(my_ex.Message.ToString(), null);
+            }*/
+
+
+            var senderEmail = _emailSettings.emailAddress;
+            var senderPassword = _emailSettings.password;
+
+            var client = new SmtpClient("smtp.gmail.com", 587)
+            {
+                EnableSsl = true,
+                Credentials = new NetworkCredential(senderEmail, senderPassword)
+            };
+
+            var newOTP = await CreateOTP(email);
+
+            if (newOTP.error != null)
+            {
+                return returnedResponse.ErrorResponse(newOTP.error.message, null);
+            }
+
+            try
+            {
+                MailMessage mailMessage = new MailMessage(senderEmail, email);
+                mailMessage.Subject = "ONE-TIME PASSWORD FROM HEBRON PAY";
+                mailMessage.Body = $"Hello {user.UserName}, Please kindly find your one time password for HEBRON PAY Below :" +
+                    $"\n  {newOTP.data} Thank you for using HEBRON PAY";
+
+
+                await client.SendMailAsync(mailMessage);
+                return returnedResponse.CorrectResponse("successfully sent message");
 
             }
 
