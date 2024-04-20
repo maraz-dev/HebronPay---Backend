@@ -30,6 +30,7 @@ using System.Threading.Tasks;
 
 namespace HebronPay.Services.Implementation
 {
+    //test
     public class AuthenticationServices : IAuthenticationServices
     {
         private readonly UserManager<ApplicationUser> userManager;
